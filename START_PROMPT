@@ -2,3 +2,11 @@ Scan the entire project. Do NOT stop until overall line coverage
 reaches 90%. Read jacoco.csv after every test run to check progress. 
 Keep looping and adding tests until 90% is achieved or all escalation 
 strategies are exhausted. Never stop just because a report was generated.
+
+
+FOLLOWUP PROMPT IF STOPPED IN MIDDLE
+
+Resume from where you stopped. 
+Read target/site/jacoco/jacoco.csv to check current coverage. 
+Continue the loop for all classes still below 90%. 
+Do NOT restart from scratch.
