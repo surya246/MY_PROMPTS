@@ -1,0 +1,44 @@
+Your options to resume:
+Option 1 — Manual Resume Command (simplest)
+When it stops, just type this in the same chat:
+Resume from where you stopped. 
+Read target/site/jacoco/jacoco.csv to check current coverage. 
+Continue the loop for all classes still below 90%. 
+Do NOT restart from scratch.
+It will read the existing coverage report and continue from where it left off.
+
+Option 2 — Add a Resume Trigger to the prompt
+Add this block at the very bottom of your system prompt:
+## RESUME PROTOCOL
+
+If you are starting a conversation where tests already exist:
+  Step 1: FIRST run <<MVN_PATH>> clean test jacoco:report
+  Step 2: Read target/site/jacoco/jacoco.csv
+  Step 3: Calculate current coverage per class
+  Step 4: Build UNCOVERED_CLASSES list from CSV
+  Step 5: Skip classes already at 90%+
+  Step 6: Continue MASTER EXECUTION LOOP from LOOP_START
+          for remaining uncovered classes only
+  
+DO NOT regenerate tests for classes already at 90%+.
+DO NOT start from scratch if test files already exist.
+ALWAYS check jacoco.csv first before doing anything.
+Then when it stops, start a new chat, switch to the mode, and type:
+Resume test coverage improvement. 
+Check jacoco.csv and continue for classes below 90%.
+
+Option 3 — Break it into smaller chunks (most reliable)
+Instead of running the whole project at once, tell it to work package by package:
+Focus only on: src/main/java/com/example/service/
+Generate tests, compile, and reach 90% for this 
+package only. Then stop and report.
+Then next run:
+Focus only on: src/main/java/com/example/controller/
+This prevents context overflow and gives you predictable progress.
+
+Recommended approach:
+Phase 1 chat -> run on /service package
+Phase 2 chat -> run on /controller package  
+Phase 3 chat -> run on /repository package
+Phase 4 chat -> run on /util package
+Final chat   -> run full project to verify overall 90%
