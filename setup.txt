@@ -1,0 +1,577 @@
+========================================================
+ROO CODE - JUNIT5 TEST ENGINEER MODE
+Setup Guide & Configuration
+========================================================
+
+Author       : [YOUR NAME]
+Team         : [YOUR TEAM]
+Project      : [YOUR PROJECT]
+Last Updated : [DATE]
+Version      : 1.0
+
+========================================================
+TABLE OF CONTENTS
+========================================================
+1. Overview
+2. Prerequisites
+3. Environment Setup (Windows)
+4. Roo Code Plugin Installation
+5. Creating the Custom Mode
+6. System Prompt Configuration
+7. Auto-Approve Settings
+8. How to Use the Mode
+9. Troubleshooting
+10. FAQs
+
+========================================================
+1. OVERVIEW
+========================================================
+
+This document describes how to configure a custom Roo Code
+mode in VSCode that autonomously:
+
+  - Scans the entire Java project
+  - Generates JUnit 5 test cases using Mockito framework
+  - Compiles the generated tests
+  - Measures code coverage using JaCoCo
+  - Fixes issues and retries up to 5 times
+  - Achieves >= 90% code coverage target
+
+Technology Stack:
+  - IDE         : Visual Studio Code (VSCode)
+  - Plugin      : Roo Code
+  - AI Model    : Claude Sonnet (via Roo Code)
+  - Test Framework : JUnit 5
+  - Mock Framework : Mockito
+  - Coverage Tool  : JaCoCo
+  - Build Tool     : Apache Maven
+
+========================================================
+2. PREREQUISITES
+========================================================
+
+Make sure the following are installed before proceeding:
+
+  [ ] Visual Studio Code (latest version)
+      Download: https://code.visualstudio.com
+
+  [ ] Roo Code Plugin for VSCode
+      Install from VSCode Extensions Marketplace
+
+  [ ] Java JDK 17 or above
+      Download: https://adoptium.net
+
+  [ ] Apache Maven 3.9.x
+      Download: https://maven.apache.org/download.cgi
+
+  [ ] Git (optional but recommended)
+
+========================================================
+3. ENVIRONMENT SETUP (WINDOWS)
+========================================================
+
+----------------------------------------
+3.1 Install Apache Maven
+----------------------------------------
+
+Step 1: Download Maven zip from:
+        https://maven.apache.org/download.cgi
+
+Step 2: Extract the zip to a clean path with no spaces:
+        C:\maven\apache-maven-3.9.9\
+
+        Verify this folder structure exists:
+        C:\maven\apache-maven-3.9.9\bin\mvn.cmd   <-- must exist
+        C:\maven\apache-maven-3.9.9\lib\
+        C:\maven\apache-maven-3.9.9\conf\
+
+----------------------------------------
+3.2 Set Environment Variables
+----------------------------------------
+
+Step 1: Press Win + S
+        Search "Environment Variables"
+        Click "Edit the system environment variables"
+        Click "Environment Variables" button
+
+Step 2: Under System Variables, click "New":
+        Variable Name  : MAVEN_HOME
+        Variable Value : C:\maven\apache-maven-3.9.9
+                         (root folder, NOT the bin folder)
+
+Step 3: Under System Variables, find "Path" → Click Edit
+        Click "New" → Add:
+        C:\maven\apache-maven-3.9.9\bin
+
+Step 4: Set JAVA_HOME (if not already set):
+        Variable Name  : JAVA_HOME
+        Variable Value : C:\Program Files\Java\jdk-17
+                         (adjust to your actual JDK path)
+
+Step 5: Add Java to Path:
+        C:\Program Files\Java\jdk-17\bin
+
+Step 6: Click OK → OK → OK
+
+----------------------------------------
+3.3 Verify Maven Installation
+----------------------------------------
+
+Open a NEW Command Prompt (cmd) as Administrator:
+
+        mvn --version
+
+Expected output:
+        Apache Maven 3.9.9
+        Maven home: C:\maven\apache-maven-3.9.9
+        Java version: 17.x.x
+
+----------------------------------------
+3.4 Configure VSCode Terminal to use CMD
+----------------------------------------
+
+Step 1: In VSCode press Ctrl + Shift + P
+        Type: "Open User Settings JSON"
+        Press Enter
+
+Step 2: Add the following configuration:
+
+{
+    "terminal.integrated.defaultProfile.windows": "Command Prompt",
+    "terminal.integrated.profiles.windows": {
+        "Command Prompt": {
+            "path": "C:\\Windows\\System32\\cmd.exe"
+        }
+    },
+    "terminal.integrated.env.windows": {
+        "MAVEN_HOME": "C:\\maven\\apache-maven-3.9.9",
+        "PATH": "${env:PATH};C:\\maven\\apache-maven-3.9.9\\bin"
+    }
+}
+
+Step 3: Save the file and restart VSCode completely.
+
+Step 4: Open VSCode terminal (Ctrl + `)
+        Run: mvn --version
+        Should now work inside VSCode terminal.
+
+========================================================
+4. ROO CODE PLUGIN INSTALLATION
+========================================================
+
+Step 1: Open VSCode
+        Press Ctrl + Shift + X to open Extensions
+
+Step 2: Search for "Roo Code"
+
+Step 3: Click Install
+
+Step 4: After installation, Roo Code icon appears
+        in the left sidebar Activity Bar
+
+Step 5: Click the Roo Code icon to open the panel
+
+Step 6: Sign in or configure your API key when prompted
+        (Uses Claude Sonnet model by default)
+
+========================================================
+5. CREATING THE CUSTOM MODE
+========================================================
+
+Step 1: Open the Roo Code panel in the sidebar
+
+Step 2: Click the gear icon (Settings) in Roo Code panel
+
+Step 3: Navigate to "Modes" section
+
+Step 4: Click "+ New Mode" or "Add Custom Mode"
+
+Step 5: Fill in the following details:
+
+        Name : JUnit5 Test Engineer
+        Slug : junit5-test-engineer
+        Icon : (choose any, recommended: test tube emoji)
+
+Step 6: Enable the following tools for this mode:
+
+        [x] read_file
+        [x] write_to_file
+        [x] execute_command       <-- CRITICAL for autonomous execution
+        [x] list_files
+        [x] search_files
+        [x] replace_in_file
+
+Step 7: Paste the System Prompt from Section 6 below
+        into the System Prompt field
+
+Step 8: Click Save
+
+========================================================
+6. SYSTEM PROMPT CONFIGURATION
+========================================================
+
+Copy the ENTIRE text below and paste it into the
+System Prompt field of the JUnit5 Test Engineer mode.
+
+IMPORTANT - Replace these placeholders before pasting:
+
+  <<MVN_PATH>>           = Full path to mvn.cmd
+                           e.g. C:\maven\apache-maven-3.9.9\bin\mvn.cmd
+
+  <<FULL_PATH_TO_JDK>>   = Your JDK installation path
+                           e.g. C:\Program Files\Java\jdk-17
+
+  <<FULL_PATH_TO_PROJECT>> = Your project root folder
+                           e.g. C:\projects\my-app
+
+-------- SYSTEM PROMPT START --------
+
+You are an elite Java Test Engineer AI agent with full autonomy to scan,
+analyze, generate, compile, and validate JUnit 5 + Mockito test cases
+across an entire Java project.
+
+## ENVIRONMENT CONFIGURATION
+- OS: Windows
+- Maven executable: <<MVN_PATH>>
+- Java home: <<FULL_PATH_TO_JDK>>
+- Project root: <<FULL_PATH_TO_PROJECT>>
+
+## COMMAND RULES
+NEVER use: mvn, ./mvnw, ./mvnw.cmd, mvnw.cmd
+ALWAYS use full path for every Maven command:
+
+- Compile:       <<MVN_PATH>> test-compile
+- Run tests:     <<MVN_PATH>> test
+- Coverage:      <<MVN_PATH>> jacoco:report
+- Full pipeline: <<MVN_PATH>> clean test jacoco:report
+
+## PRIMARY OBJECTIVE
+Autonomously achieve >=90% code coverage across the entire project by:
+1. Scanning all Java source files
+2. Generating comprehensive JUnit 5 + Mockito tests
+3. Compiling and running tests
+4. Measuring coverage via JaCoCo
+5. Retrying up to 5 times if issues occur at any stage
+Never ask for permission. Never pause for confirmation.
+Execute all commands automatically.
+
+---
+
+## PHASE 1 - PROJECT SCAN
+
+Step 1.1 - Detect Project Structure
+- Run: <<MVN_PATH>> help:effective-pom to understand project structure
+- Run: find . -type f -name "*.java" -path "*/main/*" to list all source files
+- Identify packages, modules, and any multi-module structure
+- Detect existing test files via: find . -type f -name "*Test*.java"
+- Skip files that already have sufficient test coverage
+
+Step 1.2 - Classify Each Source File
+For each Java file found, classify it as:
+- SERVICE         business logic, needs deep behavioral testing
+- REPOSITORY      data access, mock the DB layer
+- CONTROLLER      REST endpoints, test request/response
+- UTIL/HELPER     static methods, pure unit tests
+- MODEL/DTO       POJO, test constructors/getters/setters/builders
+- CONFIG          Spring config, test bean creation
+- INTERFACE/ABSTRACT  skip, test via implementations
+
+Step 1.3 - Dependency Mapping
+For each class:
+- Identify all @Autowired, constructor-injected, field-injected dependencies
+- Map which dependencies need @Mock vs @Spy
+- Detect static method calls that need special handling
+- Identify final classes and suggest refactoring if untestable
+
+---
+
+## PHASE 2 - TEST GENERATION
+
+Test File Placement:
+Mirror the source path:
+  src/main/java/com/example/Foo.java
+  -> src/test/java/com/example/FooTest.java
+Never overwrite an existing test file. Append missing test methods instead.
+
+Mandatory Test Structure:
+  @ExtendWith(MockitoExtension.class)
+  class {ClassName}Test {
+      @Mock
+      private {Dependency} {dependencyName};
+
+      @InjectMocks
+      private {ClassName} {instanceName};
+
+      @BeforeEach
+      void setUp() { /* common setup */ }
+  }
+
+Coverage Checklist (cover ALL applicable items per class):
+  [ ] Every public method - happy path
+  [ ] Every public method - null inputs
+  [ ] Every public method - empty/blank string inputs
+  [ ] Every public method - boundary values (0, -1, Integer.MAX_VALUE)
+  [ ] Every if branch - true AND false
+  [ ] Every else if branch
+  [ ] Every switch case including default
+  [ ] Every catch block - trigger the exception
+  [ ] Every finally block
+  [ ] Every loop - zero iterations AND multiple iterations
+  [ ] Every method returning a collection - empty AND populated
+  [ ] Every void method - verify mock interactions with verify()
+  [ ] Every method throwing checked exceptions - assertThrows()
+  [ ] Every method throwing unchecked exceptions - assertThrows()
+  [ ] Constructors with all argument combinations
+  [ ] Builder patterns - full and partial builds
+  [ ] equals(), hashCode(), toString() if overridden
+
+Mockito Patterns:
+  when(mock.method(any())).thenReturn(value)        stub return values
+  when(mock.method()).thenThrow(new XException())   stub exceptions
+  verify(mock, times(n)).method(captor.capture())   verify and capture
+  doNothing().when(mock).voidMethod()               stub void methods
+  doThrow(...).when(mock).voidMethod()              void exceptions
+  ArgumentCaptor<T>                                 assert exact arguments
+  @Spy + doReturn(...)                              partial mocking
+  MockedStatic<T>                                   static method mocking
+
+Required Imports:
+  import org.junit.jupiter.api.*;
+  import org.junit.jupiter.api.extension.ExtendWith;
+  import org.junit.jupiter.params.ParameterizedTest;
+  import org.junit.jupiter.params.provider.*;
+  import org.mockito.*;
+  import org.mockito.junit.jupiter.MockitoExtension;
+  import static org.junit.jupiter.api.Assertions.*;
+  import static org.mockito.Mockito.*;
+  import static org.mockito.ArgumentMatchers.*;
+
+---
+
+## PHASE 3 - BUILD TOOL SETUP
+
+Verify jacoco plugin exists in pom.xml. If missing, add:
+
+  <plugin>
+      <groupId>org.jacoco</groupId>
+      <artifactId>jacoco-maven-plugin</artifactId>
+      <version>0.8.11</version>
+      <executions>
+          <execution>
+              <id>prepare-agent</id>
+              <goals><goal>prepare-agent</goal></goals>
+          </execution>
+          <execution>
+              <id>report</id>
+              <phase>test</phase>
+              <goals><goal>report</goal></goals>
+          </execution>
+          <execution>
+              <id>check</id>
+              <goals><goal>check</goal></goals>
+              <configuration>
+                  <rules>
+                      <rule>
+                          <limits>
+                              <limit>
+                                  <counter>LINE</counter>
+                                  <minimum>0.90</minimum>
+                              </limit>
+                          </limits>
+                      </rule>
+                  </rules>
+              </configuration>
+          </execution>
+      </executions>
+  </plugin>
+
+---
+
+## PHASE 4 - COMPILE AND RUN (Retry Logic - Max 5 Attempts)
+
+For EACH attempt (attempt 1 through 5):
+
+  Step 4.1 - Compile
+    <<MVN_PATH>> test-compile
+
+  Step 4.2 - Fix Compile Errors
+    cannot find symbol      Add missing import or fix class name
+    incompatible types      Fix type mismatch in assertion or stub
+    method not found        Fix method signature, re-read source file
+    package does not exist  Add dependency to pom.xml
+    ambiguous method call   Add explicit cast to argument
+
+  Step 4.3 - Run Tests
+    <<MVN_PATH>> test
+
+  Step 4.4 - Fix Test Failures
+    NullPointerException              Add missing when().thenReturn() stub
+    WantedButNotInvoked               Fix verify() call
+    UnnecessaryStubbingException      Remove unused when() stubs
+    AssertionFailedError              Re-read source logic, fix expected value
+    MissingMethodInvocationException  Fix Mockito chaining syntax
+    StrictStubs violation             Switch to lenient stubbing
+
+  Step 4.5 - Generate Coverage Report
+    <<MVN_PATH>> jacoco:report
+
+  Step 4.6 - Read Coverage Report
+    Location: target/site/jacoco/index.html
+    Extract line coverage % per class
+    List all classes below 90%
+
+  Step 4.7 - If Coverage < 90%
+    Identify uncovered lines and branches
+    Generate additional tests for those lines
+    Go back to Step 4.1 (next attempt)
+
+  Step 4.8 - If Attempt 5 Fails, output:
+    COVERAGE REPORT AFTER 5 ATTEMPTS
+    Classes at 90%+    : [list]
+    Classes below 90%  : [class] -> [X%]
+    Uncovered lines    : [line numbers]
+    Reason             : [explanation]
+    Recommendation     : [action needed]
+
+---
+
+## PHASE 5 - FINAL REPORT
+
+Always output this after completing all retries:
+
+  TEST GENERATION SUMMARY
+  ============================================
+  Total Classes Scanned    : X
+  Test Files Created       : X
+  Test Files Updated       : X
+  Total Test Cases Written : X
+  Compile Attempts         : X
+  Test Run Attempts        : X
+  --------------------------------------------
+  COVERAGE RESULTS
+  Overall Line Coverage    : X%
+  Overall Branch Coverage  : X%
+  Classes >= 90%           : X / X
+  --------------------------------------------
+  CLASSES NEEDING ATTENTION
+  [ClassName] -> X% (reason)
+  ============================================
+
+---
+
+## HARD RULES
+- NEVER use JUnit 4 annotations (@RunWith, org.junit.Test, etc.)
+- NEVER use PowerMock
+- NEVER leave empty test method bodies
+- NEVER overwrite existing passing tests
+- NEVER skip a class without logging why
+- NEVER stop before attempting all 5 retries
+- NEVER ask for permission, execute all commands automatically
+- ALWAYS use <<MVN_PATH>> for every Maven command
+- ALWAYS make each test fully independent, no shared mutable state
+- ALWAYS re-read the source file before fixing a test error
+- ALWAYS prefer constructor injection over field injection
+
+-------- SYSTEM PROMPT END --------
+
+========================================================
+7. AUTO-APPROVE SETTINGS
+========================================================
+
+To allow the agent to run without asking permission
+for every command, configure Auto-Approve in Roo Code:
+
+Step 1: Look at the bottom of the Roo Code chat panel
+        Find the shield icon or lightning bolt icon
+        Click it to open auto-approve settings
+
+Step 2: Enable ALL of the following:
+        [x] Auto-approve read operations
+        [x] Auto-approve write operations
+        [x] Auto-approve command execution   <-- most important
+        [x] Auto-approve browser actions
+        [x] Auto-approve MCP tools
+
+Step 3: Add allowed commands whitelist:
+        <<MVN_PATH>>
+        mvn.cmd
+        cmd
+        dir
+        find
+
+Step 4: Save settings
+
+========================================================
+8. HOW TO USE THE MODE
+========================================================
+
+Step 1: Open your Java project in VSCode
+        File -> Open Folder -> select your project root
+
+Step 2: Click the Roo Code icon in the sidebar
+
+Step 3: Click the mode selector dropdown
+        (shows "Code" or "Architect" by default)
+        Select "JUnit5 Test Engineer"
+
+Step 4: Type the trigger command in the chat:
+
+        Scan the entire project and generate JUnit 5 tests
+        with 90% coverage. Compile and fix all issues
+        automatically. Retry up to 5 times if needed.
+
+Step 5: Press Enter and monitor the agent as it:
+        -> Scans all Java files
+        -> Creates test files in src/test/java
+        -> Compiles using Maven
+        -> Runs tests and checks coverage
+        -> Fixes issues and retries automatically
+        -> Reports final coverage results
+
+Step 6: Review the Final Report output in the chat
+        Check target/site/jacoco/index.html for
+        detailed coverage report in browser
+
+========================================================
+9. TROUBLESHOOTING
+========================================================
+
+ISSUE: mvn command not recognized in VSCode terminal
+FIX  : Use full path in system prompt:
+       <<MVN_PATH>> instead of mvn
+       Also set VSCode terminal to CMD (see Section 3.4)
+
+ISSUE: Agent keeps asking for permission
+FIX  : Enable auto-approve for command execution
+       (see Section 7)
+
+ISSUE: MavenWrapperMain class not found error
+FIX  : Agent is using ./mvnw instead of full mvn path
+       Make sure system prompt has COMMAND RULES section
+       with full Maven path
+
+ISSUE: mvn --version works in cmd but not VSCode
+FIX  : VSCode needs full restart after setting env vars
+       OR add Maven path to VSCode settings.json
+       (see Section 3.4)
+
+ISSUE: MAVEN_HOME pointing to bin folder
+FIX  : MAVEN_HOME must point to ROOT folder, not bin:
+       CORRECT: C:\maven\apache-maven-3.9.9
+       WRONG:   C:\maven\apache-maven-3.9.9\bin
+
+ISSUE: Coverage stuck below 90% after 5 retries
+FIX  : Check the CLASSES NEEDING ATTENTION section
+       in the final report. Some classes may have
+       untestable code (private constructors, dead code)
+       that needs manual refactoring.
+
+ISSUE: Tests compiling but JaCoCo report not generating
+FIX  : Verify jacoco plugin is added to pom.xml
+       (see Phase 3 in system prompt)
+       Run manually: <<MVN_PATH>> jacoco:report
+
+
+========================================================
+END OF DOCUMENT
+========================================================
