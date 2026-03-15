@@ -1,0 +1,58 @@
+<!-- Service Registry -->
+<dependency>
+    <groupId>io.pivotal.spring.cloud</groupId>
+    <artifactId>spring-cloud-services-starter-service-registry</artifactId>
+    <version>4.1.2</version>
+    <!-- Exclude old connectors just to be safe -->
+    <exclusions>
+        <exclusion>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-connectors-core</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-cloudfoundry-connector</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-spring-service-connector</artifactId>
+        </exclusion>
+    </exclusions>
+</dependency>
+
+<!-- Config Client -->
+<dependency>
+    <groupId>io.pivotal.spring.cloud</groupId>
+    <artifactId>spring-cloud-services-starter-config-client</artifactId>
+    <version>4.1.2</version>
+</dependency>
+
+<!-- java-cfenv-boot (already have 3.1.5 - that's fine) -->
+<dependency>
+    <groupId>io.pivotal.cfenv</groupId>
+    <artifactId>java-cfenv-boot</artifactId>
+    <version>3.1.5</version>
+</dependency>
+
+
+----------------
+
+
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>io.pivotal.spring.cloud</groupId>
+            <artifactId>spring-cloud-services-dependencies</artifactId>
+            <version>4.1.2</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+
+-----------------
+
+mvn dependency:tree | grep spring-cloud-connectors
+mvn dependency:tree | grep spring-cloud-spring-service-connector
+mvn dependency:tree | grep spring-cloud-cloudfoundry-connector
