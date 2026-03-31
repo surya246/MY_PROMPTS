@@ -1,0 +1,102 @@
+CLAUDE.md
+
+# Project
+Spring Boot 3.5, Java 17, JUnit 5, Mockito 5, Jakarta EE
+
+# Skip
+*Exception*, *Config*, *Application*, *Entity*, *DTO*, *Model*, *Enum*, *Constants*
+
+# Rules
+- Service/Util/Scheduler: @ExtendWith(MockitoExtension.class) @Mock @InjectMocks
+- Controller: @WebMvcTest
+- Repository: @DataJpaTest
+- No @SpringBootTest
+- Jakarta imports only
+- No questions, no plans, write file → next class → mvn once at end
+
+
+
+File 2: .claude/skills/gen-tests-all/SKILL.md
+
+---
+name: gen-tests-all
+allowed-tools: Read, Write, Bash(mvn *), Bash(python3 *)
+---
+EXECUTOR. No questions. No commentary.
+
+1. Run: python3 /tmp/gaps.py  → get class list
+2. For each class:
+   - If test exists → add missing tests only, never delete
+   - If no test → generate full test class
+   - Write immediately → print ✅ ClassName
+3. Run: mvn test jacoco:report -q --no-transfer-progress 2>&1 | tail -20
+4. Run: python3 /tmp/gaps.py  → print final table
+STOP.
+
+
+File 3: run.sh
+
+
+#!/bin/bash
+
+# Generate jacoco report
+mvn test jacoco:report -q --no-transfer-progress 2>/dev/null
+
+# Find classes with no test file at all
+NO_TEST=$(find src/main/java -name "*.java" \
+  ! -name "*Exception*" \
+  ! -name "*Config*" \
+  ! -name "*Application*" \
+  ! -name "*Entity*" \
+  ! -name "*DTO*" \
+  ! -name "*Dto*" \
+  ! -name "*Model*" \
+  ! -name "*Enum*" \
+  ! -name "*Constants*" \
+  ! -name "*Request*" \
+  ! -name "*Response*" | while read f; do
+    test=$(echo "$f" | sed 's|main|test|;s|\.java|Test.java|')
+    [ ! -f "$test" ] && echo "$f [0% - no test]"
+done)
+
+# Find classes with existing tests (jacoco report shows low coverage)
+LOW_COV=$(grep -r 'missed=' target/site/jacoco/jacoco.xml 2>/dev/null | \
+  grep -v 'Exception\|Config\|Application\|Entity\|DTO\|Model\|Enum\|Constants' | \
+  awk -F'"' '
+  /name=/{cls=$2}
+  /LINE/{
+    missed=$4; covered=$6
+    total=missed+covered
+    if(total>0){
+      pct=int(covered/total*100)
+      if(pct<90) print "src/main/java/"cls".java ["pct"%]"
+    }
+  }')
+
+WORK_LIST="$NO_TEST
+$LOW_COV"
+
+echo "=== Classes needing tests ==="
+echo "$WORK_LIST"
+echo "=============================="
+
+# Run Claude
+claude -p "
+Generate JUnit 5 tests to reach 90% coverage for these classes:
+
+$WORK_LIST
+
+Rules:
+- Existing test file: add missing tests only, never delete existing
+- No test file: generate full test class
+- Service/Util/Scheduler: @ExtendWith(MockitoExtension.class) @Mock @InjectMocks
+- Controller: @WebMvcTest
+- Repository: @DataJpaTest
+- No @SpringBootTest, Jakarta imports only, no questions
+- Write file immediately, move to next class
+- End with: mvn test jacoco:report -q --no-transfer-progress 2>&1 | tail -20
+" \
+  --max-budget-usd 4.00 \
+  --max-turns 80 \
+  --allowedTools "Read,Write,Bash(mvn *),Bash(grep *),Bash(find *),Bash(awk *)" \
+  --model claude-sonnet-4-6
