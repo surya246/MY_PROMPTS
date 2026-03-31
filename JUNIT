@@ -1,0 +1,137 @@
+CLAUDE.md
+
+# Project
+Spring Boot 3.5, Java 21, JUnit 5, Mockito 5, Maven, Jakarta EE
+
+# Test Rules
+- Unit tests only, NO @SpringBootTest
+- @ExtendWith(MockitoExtension.class) + @Mock + @InjectMocks
+- Jakarta imports only (never javax)
+- Cover: all public methods + null inputs + exception paths
+- Test naming: methodName_scenario_expected()
+
+# Behavior
+- NEVER ask questions, NEVER explain plans, NEVER show progress %
+- Write file → next class. Loop until done. Then run mvn once.
+
+
+.claude/skills/gen-tests-all/SKILL.md
+
+---
+name: gen-tests-all
+description: Generate JUnit 5 tests for all untested classes
+allowed-tools: Read, Write, Bash(find *), Bash(mvn *)
+---
+
+EXECUTOR MODE. No commentary. No questions. Just do this:
+
+1. Run: find src/main/java -name "*.java" ! -name "*Application*" ! -name "*Config*" ! -name "*Exception*"
+2. For each file with no matching test in src/test/java:
+   - Read the class
+   - Write test to mirrored path in src/test/java
+   - Print: ✅ ClassName
+3. Run: mvn test -q --no-transfer-progress 2>&1 | tail -30
+4. Fix compile errors only (1 retry max per class)
+5. Print summary table: Class | Tests | Pass/Fail
+STOP.
+
+run-tests.sh
+
+#!/bin/bash
+
+# Step 1: Run JaCoCo to get current coverage
+echo "Running coverage report..."
+mvn test jacoco:report -q --no-transfer-progress 2>/dev/null
+
+# Step 2: Parse JaCoCo XML to find classes < 90% line coverage
+python3 - <<'EOF' > /tmp/todo.txt
+import xml.etree.ElementTree as ET
+
+tree = ET.parse('target/site/jacoco/jacoco.xml')
+root = tree.getroot()
+
+for pkg in root.findall('package'):
+    for cls in pkg.findall('class'):
+        name = cls.get('name')  # com/dbs/epms/service/FooService
+        
+        # Skip configs, exceptions, constants
+        skip = ['Application','Config','Exception','Constants','Enum']
+        if any(s in name for s in skip):
+            continue
+        
+        lines = cls.find(".//counter[@type='LINE']")
+        if lines is None:
+            continue
+            
+        missed = int(lines.get('missed', 0))
+        covered = int(lines.get('covered', 0))
+        total = missed + covered
+        
+        if total == 0:
+            continue
+            
+        pct = (covered / total) * 100
+        
+        if pct < 90:
+            # Convert to file path
+            src = f"src/main/java/{name}.java"
+            test = f"src/test/java/{name}Test.java"
+            print(f"{src}|{test}|{int(pct)}")
+EOF
+
+echo "Classes below 90% coverage:"
+cat /tmp/todo.txt
+
+# Step 3: Also extract which specific lines are uncovered per class
+python3 - <<'EOF' > /tmp/uncovered-lines.txt
+import xml.etree.ElementTree as ET
+
+tree = ET.parse('target/site/jacoco/jacoco.xml')
+root = tree.getroot()
+
+for pkg in root.findall('package'):
+    for cls in pkg.findall('class'):
+        name = cls.get('name')
+        for line in cls.findall('line'):
+            if line.get('mi', '0') != '0':  # missed instructions > 0
+                print(f"{name}:{line.get('nr')}")
+EOF
+
+# Step 4: Hand Claude exact targets — no discovery needed
+CLASS_LIST=$(awk -F'|' '{print $1" ("$3"% covered)"}' /tmp/todo.txt | tr '\n' '\n')
+LINE_HINTS=$(cat /tmp/uncovered-lines.txt)
+
+claude -p "
+Existing coverage is already 40%+. DO NOT regenerate passing tests.
+
+Target only these classes (all below 90% line coverage):
+$CLASS_LIST
+
+Uncovered lines by class:
+$LINE_HINTS
+
+Instructions:
+- Read existing test file first if it exists
+- Add ONLY missing test cases that cover the uncovered lines above
+- Never delete or modify existing tests
+- Use @Mock + @InjectMocks, no @SpringBootTest, Jakarta imports
+- No questions, no explanations, write and move to next class
+
+After all done:
+  mvn test jacoco:report -q --no-transfer-progress
+  python3 -c \"
+import xml.etree.ElementTree as ET
+tree = ET.parse('target/site/jacoco/jacoco.xml')
+for pkg in tree.getroot().findall('package'):
+    for cls in pkg.findall('class'):
+        lines = cls.find('.//counter[@type=\\\"LINE\\\"]')
+        if lines is not None:
+            m,c = int(lines.get('missed',0)),int(lines.get('covered',0))
+            t = m+c
+            if t>0: print(f\"{cls.get('name')}: {int(c/t*100)}%\")
+\"
+" \
+  --max-budget-usd 2.00 \
+  --max-turns 40 \
+  --allowedTools "Read,Write,Bash" \
+  --model sonnet
